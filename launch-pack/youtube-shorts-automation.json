@@ -1,0 +1,712 @@
+{
+  "id": "YtShortsAuto001",
+  "name": "YouTube Shorts Automation — AI Create & Publish (Pro)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## YouTube Shorts Content Engine (Pro)\n\n**Production-grade pipeline:** Google Sheet settings → AI script → voice + image → Creatomate → YouTube.\n\n**Buyer setup (5 steps):**\n1. Copy `content-strategy-template.csv` into Google Sheets (Settings + Usage Log tabs — see INSTALLATION-GUIDE.md)\n2. Connect **Google Sheets OAuth2** on Load Settings + Append Usage Log\n3. Connect **OpenAI API** on the 3 OpenAI HTTP nodes\n4. Connect **Creatomate** (Header Auth: `Bearer KEY`) on Creatomate nodes\n5. Connect **YouTube OAuth2** on Upload node\n6. Import + activate **YouTube Shorts — Error Alerts** workflow; verify Error Workflow in this workflow's Settings\n\n**Creatomate template elements:** `Voice-Audio`, `Background-Image`, `Hook-Text`, `Caption-Text` (1080×1920)\n\n**No code editing required** — buyers change niche/topic/tone in the Settings sheet only.",
+        "height": 560,
+        "width": 460,
+        "color": 4
+      },
+      "id": "a1000001-0000-4000-8000-000000000001",
+      "name": "📋 Setup Guide",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-360, -140]
+    },
+    {
+      "parameters": {},
+      "id": "a1000001-0000-4000-8000-000000000002",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [140, 80]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "a1000001-0000-4000-8000-000000000003",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [140, 280]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Settings"
+        },
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000030",
+      "name": "Load Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [380, 180],
+      "notesInFlow": true,
+      "notes": "Paste your Google Sheet ID — buyers never edit n8n nodes"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((item) => item.json);\n\nif (!rows.length) {\n  throw new Error('Settings sheet is empty. Add at least one row with active=TRUE.');\n}\n\nconst normalizeBool = (value) => String(value ?? '').trim().toUpperCase() === 'TRUE';\n\nconst activeRow = rows.find((row) => normalizeBool(row.active ?? row.Active)) || rows[0];\n\nconst templateId = String(\n  activeRow.creatomateTemplateId ?? activeRow['Creatomate Template ID'] ?? ''\n).trim();\n\nif (!templateId || templateId === 'YOUR_CREATOMATE_TEMPLATE_ID') {\n  throw new Error('Set a valid creatomateTemplateId in the Settings sheet before running.');\n}\n\nreturn [{\n  json: {\n    niche: String(activeRow.niche ?? activeRow.Niche ?? 'general').trim(),\n    topic: String(activeRow.topic ?? activeRow.Topic ?? '').trim(),\n    tone: String(activeRow.tone ?? activeRow.Tone ?? 'energetic').trim(),\n    voice: String(activeRow.voice ?? activeRow.Voice ?? 'onyx').trim(),\n    privacyStatus: String(activeRow.privacyStatus ?? activeRow['Privacy Status'] ?? 'unlisted').trim(),\n    creatomateTemplateId: templateId,\n    language: String(activeRow.language ?? activeRow.Language ?? 'English').trim(),\n    settingsSource: 'google_sheets',\n    settingsRowNotes: String(activeRow.notes ?? activeRow.Notes ?? '').trim(),\n    loadedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "a1000001-0000-4000-8000-000000000031",
+      "name": "Normalize Settings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a world-class YouTube Shorts Strategist. Your goal is to maximize viewer retention. Use the Hook-Body-CTA framework. Ensure the script is exactly 50-55 seconds when read at a conversational pace (roughly 125-145 words). Provide an imagePrompt that is highly detailed and cinematic for DALL-E (vertical 9:16, no text in image). Output ONLY valid JSON with keys: title (max 70 chars), hook (max 12 words), script (Hook-Body-CTA spoken narration), imagePrompt, description (2 sentences + 3 hashtags), tags (array of 8 strings). Language: {{ $json.language }}.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Niche: {{ $json.niche }}. Tone: {{ $json.tone }}. {{ $json.topic ? 'Topic: ' + $json.topic + '.' : 'Generate a fresh high-retention topic in this niche.' }} Optimize for watch time and a strong opening hook.\"\n    }\n  ],\n  \"temperature\": 0.85\n}",
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000005",
+      "name": "Generate Script (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [820, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst usage = response.usage || {};\nconst promptTokens = usage.prompt_tokens || 0;\nconst completionTokens = usage.completion_tokens || 0;\nconst totalTokens = usage.total_tokens || (promptTokens + completionTokens);\n\nconst inputRate = 0.00000015;\nconst outputRate = 0.0000006;\nconst estimatedCostUsd = (promptTokens * inputRate) + (completionTokens * outputRate);\n\nreturn [{\n  json: {\n    ...response,\n    tokenUsage: {\n      node: 'Generate Script (OpenAI)',\n      model: response.model || 'gpt-4o-mini',\n      promptTokens,\n      completionTokens,\n      totalTokens,\n      estimatedCostUsd: Number(estimatedCostUsd.toFixed(6))\n    }\n  }\n}];"
+      },
+      "id": "a1000001-0000-4000-8000-000000000032",
+      "name": "Log Script Token Usage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('Normalize Settings').first().json;\nconst tokenUsage = $input.first().json.tokenUsage || {};\nconst content = $input.first().json.choices?.[0]?.message?.content;\n\nif (!content) {\n  throw new Error('OpenAI returned no script content');\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(content);\n} catch (error) {\n  throw new Error('Failed to parse OpenAI JSON: ' + error.message);\n}\n\nconst required = ['title', 'hook', 'script', 'imagePrompt', 'description', 'tags'];\nfor (const key of required) {\n  if (!parsed[key]) {\n    throw new Error('Missing field in AI response: ' + key);\n  }\n}\n\nconst tags = Array.isArray(parsed.tags) ? parsed.tags : String(parsed.tags).split(',').map((t) => t.trim());\nconst description = parsed.description.includes('#Shorts')\n  ? parsed.description\n  : parsed.description + '\\n\\n#Shorts';\n\nconst wordCount = parsed.script.split(/\\s+/).filter(Boolean).length;\nif (wordCount < 110 || wordCount > 160) {\n  throw new Error(`Script length out of range (${wordCount} words). Target 125-145 words for 50-55s pacing.`);\n}\n\nreturn [{\n  json: {\n    ...config,\n    title: String(parsed.title).slice(0, 100),\n    hook: parsed.hook,\n    script: parsed.script,\n    imagePrompt: parsed.imagePrompt,\n    description,\n    tags,\n    wordCount,\n    tokenUsage\n  }\n}];"
+      },
+      "id": "a1000001-0000-4000-8000-000000000006",
+      "name": "Parse Script JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/speech",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini-tts\",\n  \"voice\": \"{{ $json.voice }}\",\n  \"input\": {{ JSON.stringify($json.script) }},\n  \"response_format\": \"mp3\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "voiceover"
+            }
+          }
+        }
+      },
+      "id": "a1000001-0000-4000-8000-000000000007",
+      "name": "Generate Voiceover (OpenAI TTS)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/generations",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-image-1\",\n  \"prompt\": {{ JSON.stringify($('Parse Script JSON').item.json.imagePrompt) }},\n  \"size\": \"1024x1536\",\n  \"quality\": \"medium\",\n  \"n\": 1\n}",
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000008",
+      "name": "Generate Background (DALL-E)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "const scriptData = $('Parse Script JSON').first().json;\nconst imageResponse = $input.first().json;\n\nconst imageUrl = imageResponse.data?.[0]?.url;\nif (!imageUrl) {\n  throw new Error('No image URL returned from OpenAI image generation');\n}\n\nconst estimatedImageCostUsd = 0.04;\n\nreturn [{\n  json: {\n    ...scriptData,\n    backgroundImageUrl: imageUrl,\n    tokenUsage: {\n      ...scriptData.tokenUsage,\n      imageGeneration: {\n        node: 'Generate Background (DALL-E)',\n        estimatedCostUsd: estimatedImageCostUsd\n      },\n      runEstimatedCostUsd: Number(((scriptData.tokenUsage?.estimatedCostUsd || 0) + estimatedImageCostUsd).toFixed(6))\n    }\n  }\n}];"
+      },
+      "id": "a1000001-0000-4000-8000-000000000033",
+      "name": "Log Image Cost Estimate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1720, 280]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000009",
+      "name": "Merge Assets",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1940, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "const scriptData = $('Log Image Cost Estimate').first().json;\nconst voiceItem = $('Generate Voiceover (OpenAI TTS)').first();\n\nconst binary = voiceItem.binary?.voiceover;\nif (!binary?.data) {\n  throw new Error('No voiceover binary returned from OpenAI TTS');\n}\n\nconst ttsEstimatedCostUsd = 0.015;\nconst audioDataUri = `data:${binary.mimeType || 'audio/mpeg'};base64,${binary.data}`;\n\nconst tokenUsage = {\n  ...scriptData.tokenUsage,\n  tts: {\n    node: 'Generate Voiceover (OpenAI TTS)',\n    estimatedCostUsd: ttsEstimatedCostUsd\n  },\n  runEstimatedCostUsd: Number(((scriptData.tokenUsage?.runEstimatedCostUsd || 0) + ttsEstimatedCostUsd).toFixed(6))\n};\n\nreturn [{\n  json: {\n    ...scriptData,\n    audioDataUri,\n    tokenUsage,\n    creatomateModifications: {\n      'Voice-Audio': audioDataUri,\n      'Background-Image': scriptData.backgroundImageUrl,\n      'Hook-Text': scriptData.hook,\n      'Caption-Text': scriptData.script\n    }\n  }\n}];"
+      },
+      "id": "a1000001-0000-4000-8000-000000000010",
+      "name": "Prepare Video Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.creatomate.com/v2/renders",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"template_id\": \"{{ $json.creatomateTemplateId }}\",\n  \"modifications\": {{ JSON.stringify($json.creatomateModifications) }},\n  \"render_scale\": 1,\n  \"max_width\": 1080,\n  \"max_height\": 1920\n}",
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000011",
+      "name": "Start Creatomate Render",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2380, 180]
+    },
+    {
+      "parameters": {
+        "amount": 45
+      },
+      "id": "a1000001-0000-4000-8000-000000000012",
+      "name": "Wait for Render",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [2600, 180],
+      "webhookId": "shorts-render-wait-webhook-v2"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.creatomate.com/v2/renders/{{ $('Start Creatomate Render').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000013",
+      "name": "Get Render Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2820, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "render-success",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "succeeded",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000014",
+      "name": "Render Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [3040, 180]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "shortVideo"
+            }
+          }
+        }
+      },
+      "id": "a1000001-0000-4000-8000-000000000015",
+      "name": "Download MP4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3280, 80]
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('Parse Script JSON').item.json.title }}",
+        "regionCode": "US",
+        "categoryId": 22,
+        "binaryPropertyName": "shortVideo",
+        "options": {
+          "description": "={{ $('Parse Script JSON').item.json.description }}",
+          "privacyStatus": "={{ $('Parse Script JSON').item.json.privacyStatus }}",
+          "tags": "={{ $('Parse Script JSON').item.json.tags.join(',') }}"
+        }
+      },
+      "id": "a1000001-0000-4000-8000-000000000016",
+      "name": "Upload to YouTube",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [3520, 80]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success-status",
+              "name": "status",
+              "value": "published",
+              "type": "string"
+            },
+            {
+              "id": "success-video-id",
+              "name": "youtubeVideoId",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "success-url",
+              "name": "youtubeUrl",
+              "value": "=https://youtube.com/shorts/{{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "success-title",
+              "name": "title",
+              "value": "={{ $('Parse Script JSON').item.json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "success-niche",
+              "name": "niche",
+              "value": "={{ $('Parse Script JSON').item.json.niche }}",
+              "type": "string"
+            },
+            {
+              "id": "success-tokens",
+              "name": "totalTokens",
+              "value": "={{ $('Parse Script JSON').item.json.tokenUsage.totalTokens }}",
+              "type": "number"
+            },
+            {
+              "id": "success-cost",
+              "name": "estimatedCostUsd",
+              "value": "={{ $('Prepare Video Payload').item.json.tokenUsage.runEstimatedCostUsd }}",
+              "type": "number"
+            },
+            {
+              "id": "success-time",
+              "name": "publishedAt",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000017",
+      "name": "Success Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [3760, 80]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Usage Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.publishedAt }}",
+            "title": "={{ $json.title }}",
+            "niche": "={{ $json.niche }}",
+            "youtubeUrl": "={{ $json.youtubeUrl }}",
+            "totalTokens": "={{ $json.totalTokens }}",
+            "estimatedCostUsd": "={{ $json.estimatedCostUsd }}",
+            "status": "={{ $json.status }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000034",
+      "name": "Append Usage Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [3980, 80],
+      "notesInFlow": true,
+      "notes": "Logs token usage + cost per published Short"
+    },
+    {
+      "parameters": {
+        "errorMessage": "=Creatomate render failed or still processing. Status: {{ $json.status }}. Error: {{ $json.error_message || 'none' }}. Fix template element names: Voice-Audio, Background-Image, Hook-Text, Caption-Text."
+      },
+      "id": "a1000001-0000-4000-8000-000000000018",
+      "name": "Render Failed",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [3280, 300]
+    },
+    {
+      "parameters": {
+        "content": "## Stage 0 — SaaS Settings\nGoogle Sheet drives niche, tone, topic, voice, privacy, template ID. Set `active=TRUE` on one row.",
+        "height": 120,
+        "width": 340,
+        "color": 7
+      },
+      "id": "a1000001-0000-4000-8000-000000000035",
+      "name": "Stage 0",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [120, -100]
+    },
+    {
+      "parameters": {
+        "content": "## Stage 1 — Content + Cost Tracking\nHook-Body-CTA script generation with token usage logging and word-count validation.",
+        "height": 120,
+        "width": 360,
+        "color": 5
+      },
+      "id": "a1000001-0000-4000-8000-000000000019",
+      "name": "Stage 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [780, -100]
+    },
+    {
+      "parameters": {
+        "content": "## Stage 2 — Media\nParallel TTS voiceover + cinematic DALL-E background with cost estimates.",
+        "height": 120,
+        "width": 320,
+        "color": 6
+      },
+      "id": "a1000001-0000-4000-8000-000000000020",
+      "name": "Stage 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1480, -100]
+    },
+    {
+      "parameters": {
+        "content": "## Stage 3 — Render, Publish, Log\nCreatomate 9:16 render → YouTube upload → Usage Log sheet. Failures trigger Error Alerts workflow.",
+        "height": 120,
+        "width": 380,
+        "color": 3
+      },
+      "id": "a1000001-0000-4000-8000-000000000021",
+      "name": "Stage 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [2340, -100]
+    }
+  ],
+  "connections": {
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "Load Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Load Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Settings": {
+      "main": [
+        [
+          {
+            "node": "Normalize Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Settings": {
+      "main": [
+        [
+          {
+            "node": "Generate Script (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Script (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Log Script Token Usage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Script Token Usage": {
+      "main": [
+        [
+          {
+            "node": "Parse Script JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Script JSON": {
+      "main": [
+        [
+          {
+            "node": "Generate Voiceover (OpenAI TTS)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Background (DALL-E)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Voiceover (OpenAI TTS)": {
+      "main": [
+        [
+          {
+            "node": "Merge Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Background (DALL-E)": {
+      "main": [
+        [
+          {
+            "node": "Log Image Cost Estimate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Image Cost Estimate": {
+      "main": [
+        [
+          {
+            "node": "Merge Assets",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Assets": {
+      "main": [
+        [
+          {
+            "node": "Prepare Video Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Video Payload": {
+      "main": [
+        [
+          {
+            "node": "Start Creatomate Render",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Creatomate Render": {
+      "main": [
+        [
+          {
+            "node": "Wait for Render",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Render": {
+      "main": [
+        [
+          {
+            "node": "Get Render Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Render Status": {
+      "main": [
+        [
+          {
+            "node": "Render Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Download MP4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Render Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download MP4": {
+      "main": [
+        [
+          {
+            "node": "Upload to YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to YouTube": {
+      "main": [
+        [
+          {
+            "node": "Success Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Output": {
+      "main": [
+        [
+          {
+            "node": "Append Usage Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "YtShortsErr001"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "YouTube Shorts"
+    },
+    {
+      "name": "AI Automation"
+    },
+    {
+      "name": "Production"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "active": false
+}

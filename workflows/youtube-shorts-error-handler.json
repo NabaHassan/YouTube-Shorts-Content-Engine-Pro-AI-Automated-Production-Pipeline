@@ -1,0 +1,131 @@
+{
+  "id": "YtShortsErr001",
+  "name": "YouTube Shorts — Error Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Error Alert Handler\n\nLinked from the main Shorts workflow via **Settings → Error Workflow**.\n\n**Setup:**\n1. Edit **Alert Config** — set your webhook URL (Slack, Discord, Make, Zapier, or custom endpoint).\n2. Optional: Replace **Send Alert Webhook** with Gmail/Slack node if you prefer.\n\nAlerts include workflow name, failed node, error message, and timestamp.",
+        "height": 260,
+        "width": 380,
+        "color": 2
+      },
+      "id": "err-note-001",
+      "name": "Error Handler Guide",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -80]
+    },
+    {
+      "parameters": {},
+      "id": "err-trigger-001",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [180, 120]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "alert-webhook",
+              "name": "alertWebhookUrl",
+              "value": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "err-config-001",
+      "name": "Alert Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [400, 120],
+      "notesInFlow": true,
+      "notes": "Set Slack/Discord/custom webhook URL"
+    },
+    {
+      "parameters": {
+        "jsCode": "const execution = $input.first().json;\nconst config = $('Alert Config').first().json;\n\nconst failedNode = execution.execution?.lastNodeExecuted || execution.lastNodeExecuted || 'Unknown node';\nconst workflowName = execution.workflow?.name || 'YouTube Shorts Automation';\nconst workflowId = execution.workflow?.id || '';\nconst errorMessage = execution.execution?.error?.message || execution.error?.message || 'Unknown error';\nconst errorStack = execution.execution?.error?.stack || execution.error?.stack || '';\nconst mode = execution.execution?.mode || execution.mode || 'unknown';\nconst timestamp = new Date().toISOString();\n\nreturn [{\n  json: {\n    alertWebhookUrl: config.alertWebhookUrl,\n    severity: 'error',\n    service: 'youtube-shorts-automation',\n    timestamp,\n    workflowName,\n    workflowId,\n    failedNode,\n    executionMode: mode,\n    errorMessage,\n    errorStack,\n    slackText: `🚨 *YouTube Shorts Automation Failed*\\n• Workflow: ${workflowName}\\n• Node: ${failedNode}\\n• Error: ${errorMessage}\\n• Time: ${timestamp}`,\n    discordContent: `🚨 **YouTube Shorts Automation Failed**\\nWorkflow: ${workflowName}\\nNode: ${failedNode}\\nError: ${errorMessage}\\nTime: ${timestamp}`\n  }\n}];"
+      },
+      "id": "err-format-001",
+      "name": "Format Error Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 120]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.alertWebhookUrl }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": {{ JSON.stringify($json.slackText) }},\n  \"content\": {{ JSON.stringify($json.discordContent) }},\n  \"workflow\": {{ JSON.stringify($json.workflowName) }},\n  \"node\": {{ JSON.stringify($json.failedNode) }},\n  \"error\": {{ JSON.stringify($json.errorMessage) }},\n  \"timestamp\": {{ JSON.stringify($json.timestamp) }}\n}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "err-webhook-001",
+      "name": "Send Alert Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 120],
+      "notesInFlow": true,
+      "notes": "Works with Slack incoming webhooks; Discord accepts content field"
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Alert Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Config": {
+      "main": [
+        [
+          {
+            "node": "Format Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Alert Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "YouTube Shorts"
+    },
+    {
+      "name": "Error Handling"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "active": true
+}

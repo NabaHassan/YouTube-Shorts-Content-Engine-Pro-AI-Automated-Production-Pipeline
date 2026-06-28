@@ -1,0 +1,9 @@
+niche,topic,tone,voice,privacyStatus,creatomateTemplateId,language,active,notes
+motivation and productivity,,energetic,onyx,unlisted,YOUR_CREATOMATE_TEMPLATE_ID,English,TRUE,Default row — edit values only; do not delete header row
+fitness for busy professionals,3 habits that burn fat without the gym,motivational,nova,unlisted,YOUR_CREATOMATE_TEMPLATE_ID,English,FALSE,Example topic row — set active=TRUE to use this row
+personal finance,why saving $5/day beats lottery tickets,authoritative,onyx,unlisted,YOUR_CREATOMATE_TEMPLATE_ID,English,FALSE,Example topic row
+mindset,stop waiting for motivation — do this instead,energetic,shimmer,unlisted,YOUR_CREATOMATE_TEMPLATE_ID,English,FALSE,Example topic row
+productivity,one morning routine that saves 2 hours,direct,echo,unlisted,YOUR_CREATOMATE_TEMPLATE_ID,English,FALSE,Example topic row
+entrepreneurship,the skill nobody teaches in business school,confident,onyx,unlisted,YOUR_CREATOMATE_TEMPLATE_ID,English,FALSE,Example topic row
+self improvement,read this if you feel stuck in life,empathetic,nova,unlisted,YOUR_CREATOMATE_TEMPLATE_ID,English,FALSE,Example topic row
+career growth,how to negotiate a raise in 60 seconds,authoritative,onyx,unlisted,YOUR_CREATOMATE_TEMPLATE_ID,English,FALSE,Example topic row

@@ -1,0 +1,12 @@
+# Local secrets — never commit API keys or n8n encryption keys
+.env
+.env.*
+**/config
+*.sqlite
+*.sqlite-*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
